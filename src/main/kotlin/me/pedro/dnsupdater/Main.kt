@@ -68,7 +68,8 @@ suspend fun main() {
 
     val nameCom: NameCom = retrofit.create()
 
-    val ipFlow: Flow<String> = flow {
+    log("Starting")
+    flow {
         while (true) {
             val ip = iPify.getIP().ip
             log("Got ip $ip")
@@ -76,9 +77,6 @@ suspend fun main() {
             delay(5.minutes)
         }
     }
-
-    log("Starting")
-    ipFlow
         .map { ip ->
             nameCom
                 .listRecords(authorization, domain)
