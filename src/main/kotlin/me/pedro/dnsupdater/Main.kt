@@ -2,7 +2,6 @@ package me.pedro.dnsupdater
 
 import com.squareup.moshi.JsonClass
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.*
 import okhttp3.Credentials
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
@@ -68,36 +67,23 @@ suspend fun main() {
 
     val nameCom: NameCom = retrofit.create()
 
-    log("Starting")
-    flow {
-        while (true) {
+    while (true) {
+        try {
             val ip = iPify.getIP().ip
             log("Got ip $ip")
-            emit(ip)
-            delay(5.minutes)
-        }
-    }
-        .map { ip ->
+
             nameCom
                 .listRecords(authorization, domain)
                 .records
                 .filter { it.answer != ip }
                 .map { it.copy(answer = ip) }
+                .onEach { record ->
+                    nameCom.updateRecords(authorization, domain, record.id, record)
+                    log("Updated $record")
+                }
+        } catch (e: Exception) {
+            log("error ${e.message ?: e}")
         }
-        .onEach { changes ->
-            if (changes.isEmpty()) {
-                log("No changes")
-                return@onEach
-            }
-
-            log("Changes $changes")
-            changes.onEach { nameCom.updateRecords(authorization, domain, it.id, it) }
-            log("Updated")
-        }
-        .retry {
-            log("error ${it.message ?: it}")
-            delay(2.minutes)
-            true
-        }
-        .collect()
+        delay(5.minutes)
+    }
 }
